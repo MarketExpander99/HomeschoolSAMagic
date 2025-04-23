@@ -1,0 +1,44 @@
+{
+  "grade1": [
+    {
+      "subject": "math",
+      "quizzes": [
+        {"question": "2 + 3 =", "answer": "5", "options": ["4", "5", "6"]},
+        {"question": "5 - 2 =", "answer": "3", "options": ["2", "3", "4"]},
+        {"question": "1 + 4 =", "answer": "5", "options": ["3", "4", "5"]}
+      ]
+    },
+    {
+      "subject": "spelling",
+      "quizzes": [
+        {"word": "cat", "options": ["cat", "hat", "rat"]},
+        {"word": "dog", "options": ["dog", "log", "fog"]},
+        {"word": "sun", "options": ["sun", "fun", "run"]}
+      ]
+    },
+    {
+      "subject": "lifeSkills",
+      "stories": [
+        {"text": "Lila shares snacks!", "basket": ["snacks"], "answer": "Lila shares with all friends."},
+        {"text": "Zara navigates with kindness.", "basket": ["map"], "answer": "Zara uses kindness."},
+        {"text": "Sir Pugs helps a bird.", "basket": ["compass"], "answer": "Sir Pugs helps with his plane."}
+      ]
+    },
+    {
+      "subject": "aiTech",
+      "quizzes": [
+        {"question": "What helps Zara’s AI plane fly straight?", "answer": "A map", "options": ["A map", "A balloon", "A soccer ball"]},
+        {"question": "How does the AI plane know where to go?", "answer": "It thinks like Zara", "options": ["It thinks like Zara", "It sings", "It sleeps"]},
+        {"question": "What powers the AI plane?", "answer": "Code", "options": ["Code", "Candy", "Clouds"]}
+      ]
+    }
+  ],
+  "grade2": [
+    {
+      "subject": "math",
+      "quizzes": [
+        {"question": "2 x 3 =", "answer": "6", "options": ["5", "6", "7"]}
+      ]
+    }
+  ]
+}

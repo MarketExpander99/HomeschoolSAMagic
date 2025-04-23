@@ -1,0 +1,778 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Homeschool SA Magic</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="assets/js/app.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const stories = [
+      { id: 1, text: "Lila shares snacks with friends on her balloon flight!", basket: ["snacks"], answer: "Lila shares with all friends." },
+      { id: 2, text: "Zara navigates her balloon with a kind heart.", basket: ["map"], answer: "Zara uses kindness to navigate." },
+      { id: 3, text: "Sir Pugs flies his plane and helps a lost bird.", basket: ["compass"], answer: "Sir Pugs helps with his plane." }
+    ];
+
+    const spellingWords = [
+      { word: "cat", options: ["cat", "hat", "rat"] },
+      { word: "dog", options: ["dog", "log", "fog"] },
+      { word: "sun", options: ["sun", "fun", "run"] }
+    ];
+
+    const mathQuestions = [
+      { question: "2 + 3 =", answer: "5", options: ["4", "5", "6"] },
+      { question: "5 - 2 =", answer: "3", options: ["2", "3", "4"] },
+      { question: "1 + 4 =", answer: "5", options: ["3", "4", "5"] }
+    ];
+
+    const aiTechQuestions = [
+      { question: "What helps Zara’s AI plane fly straight?", answer: "A map", options: ["A map", "A balloon", "A soccer ball"] },
+      { question: "How does the AI plane know where to go?", answer: "It thinks like Zara", options: ["It thinks like Zara", "It sings", "It sleeps"] },
+      { question: "What powers the AI plane?", answer: "Code", options: ["Code", "Candy", "Clouds"] }
+    ];
+
+    const App = () => {
+      const [page, setPage] = useState('login');
+      const [theme, setTheme] = useState('light');
+      const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || {
+        kidName: '', parentName: '', parentEmail: '', coins: 0, progress: 0, username: '',
+        grade: '1', class: '1A', node: '', isHomeschool: false, ageGroup: '6-8', lessonsCompleted: [],
+        activitiesCompleted: [], showcased: false, iconAnimated: true, nodeRole: '', aiTechCompleted: false, tier: 'free'
+      });
+      const [showCustomize, setShowCustomize] = useState(false);
+      const [showShowcase, setShowShowcase] = useState(false);
+      const [showUnlock, setShowUnlock] = useState(false);
+
+      const updateUser = (newUser) => {
+        setUser(newUser);
+        localStorage.setItem('user', JSON.stringify(newUser));
+      };
+
+      const handleLogin = () => {
+        if (user.kidName && user.parentName && user.parentEmail && (user.isHomeschool ? user.node && user.ageGroup : user.grade && user.class)) {
+          const username = `StarKid${Math.floor(Math.random() * 1000)}`;
+          updateUser({ ...user, username });
+          setPage('home');
+        } else {
+          alert('Please fill in all fields.');
+        }
+      };
+
+      const checkLifeSkills = () => {
+        const selectedItems = Array.from(document.querySelectorAll('input[name="basket"]:checked')).map(input => input.value);
+        const currentStory = stories[Math.floor(Math.random() * stories.length)];
+        const isCorrect = selectedItems.length === currentStory.basket.length &&
+                         selectedItems.every(item => currentStory.basket.includes(item));
+        let totalCoins = isCorrect ? 2 : 0;
+        if (isCorrect && document.getElementById('bonusAnswer').value.toLowerCase().includes('kind')) {
+          totalCoins += 1;
+        }
+        if (isCorrect && !user.lessonsCompleted.includes('lifeSkills')) {
+          updateUser({
+            ...user,
+            lessonsCompleted: [...user.lessonsCompleted, 'lifeSkills'],
+            coins: user.coins + totalCoins,
+            progress: user.progress + (isCorrect ? 2 : 0)
+          });
+        } else {
+          updateUser({ ...user, coins: user.coins + totalCoins, progress: user.progress + (isCorrect ? 2 : 0) });
+        }
+        setPage('chat');
+      };
+
+      const checkSpelling = () => {
+        const selected = document.querySelector('input[name="spelling"]:checked')?.value;
+        const currentWord = spellingWords[Math.floor(Math.random() * spellingWords.length)];
+        const isCorrect = selected === currentWord.word;
+        const totalCoins = isCorrect ? 2 : 0;
+        if (isCorrect && !user.lessonsCompleted.includes('spelling')) {
+          updateUser({
+            ...user,
+            lessonsCompleted: [...user.lessonsCompleted, 'spelling'],
+            coins: user.coins + totalCoins,
+            progress: user.progress + (isCorrect ? 2 : 0)
+          });
+        } else {
+          updateUser({ ...user, coins: user.coins + totalCoins, progress: user.progress + (isCorrect ? 2 : 0) });
+        }
+        setPage('chat');
+      };
+
+      const checkMath = () => {
+        const selected = document.querySelector('input[name="math"]:checked')?.value;
+        const currentQuestion = mathQuestions[Math.floor(Math.random() * mathQuestions.length)];
+        const isCorrect = selected === currentQuestion.answer;
+        const totalCoins = isCorrect ? 2 : 0;
+        if (isCorrect && !user.lessonsCompleted.includes('math')) {
+          updateUser({
+            ...user,
+            lessonsCompleted: [...user.lessonsCompleted, 'math'],
+            coins: user.coins + totalCoins,
+            progress: user.progress + (isCorrect ? 2 : 0)
+          });
+        } else {
+          updateUser({ ...user, coins: user.coins + totalCoins, progress: user.progress + (isCorrect ? 2 : 0) });
+        }
+        setPage('chat');
+      };
+
+      const checkAITech = () => {
+        const selected = document.querySelector('input[name="aiTech"]:checked')?.value;
+        const currentQuestion = aiTechQuestions[Math.floor(Math.random() * aiTechQuestions.length)];
+        const isCorrect = selected === currentQuestion.answer;
+        const totalCoins = isCorrect ? 2 : 0;
+        if (isCorrect && !user.aiTechCompleted) {
+          updateUser({
+            ...user,
+            aiTechCompleted: true,
+            coins: user.coins + totalCoins + 5,
+            progress: user.progress + (isCorrect ? 5 : 0)
+          });
+        } else {
+          updateUser({ ...user, coins: user.coins + totalCoins, progress: user.progress + (isCorrect ? 5 : 0) });
+        }
+        setPage('chat');
+      };
+
+      if (page === 'login') {
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-3xl font-bold mb-4">Homeschool SA Magic</h1>
+            <input
+              type="text"
+              placeholder="Kid's Name"
+              value={user.kidName}
+              onChange={e => updateUser({ ...user, kidName: e.target.value })}
+              className="border p-2 mb-2 w-64 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Parent's Name"
+              value={user.parentName}
+              onChange={e => updateUser({ ...user, parentName: e.target.value })}
+              className="border p-2 mb-2 w-64 rounded"
+            />
+            <input
+              type="email"
+              placeholder="Parent's Email"
+              value={user.parentEmail}
+              onChange={e => updateUser({ ...user, parentEmail: e.target.value })}
+              className="border p-2 mb-2 w-64 rounded"
+            />
+            <label className="block mb-2">
+              <input
+                type="checkbox"
+                checked={user.isHomeschool}
+                onChange={e => updateUser({ ...user, isHomeschool: e.target.checked })}
+                className="mr-2"
+              />
+              Homeschooler
+            </label>
+            {user.isHomeschool ? (
+              <>
+                <select
+                  value={user.node}
+                  onChange={e => updateUser({ ...user, node: e.target.value })}
+                  className="border p-2 mb-2 w-64 rounded"
+                >
+                  <option value="">Select Node</option>
+                  <option value="STEM">Cape Town STEM</option>
+                  <option value="Art">Pretoria Art</option>
+                  <option value="Nature">Pretoria Nature</option>
+                </select>
+                <select
+                  value={user.ageGroup}
+                  onChange={e => updateUser({ ...user, ageGroup: e.target.value })}
+                  className="border p-2 mb-2 w-64 rounded"
+                >
+                  <option value="6-8">Ages 6-8</option>
+                  <option value="9-11">Ages 9-11</option>
+                </select>
+              </>
+            ) : (
+              <>
+                <select
+                  value={user.grade}
+                  onChange={e => updateUser({ ...user, grade: e.target.value })}
+                  className="border p-2 mb-2 w-64 rounded"
+                >
+                  <option value="1">Grade 1</option>
+                  <option value="2">Grade 2</option>
+                </select>
+                <select
+                  value={user.class}
+                  onChange={e => updateUser({ ...user, class: e.target.value })}
+                  className="border p-2 mb-2 w-64 rounded"
+                >
+                  <option value="1A">Class 1A</option>
+                  <option value="1B">Class 1B</option>
+                </select>
+              </>
+            )}
+            <button
+              onClick={handleLogin}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Start Adventure
+            </button>
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Toggle Theme
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'home') {
+        const leaderboard = user.isHomeschool
+          ? [
+              { node: 'Cape Town STEM', coins: 60 },
+              { node: 'Pretoria Art', coins: 55 }
+            ]
+          : [
+              { class: '1A', coins: 50 },
+              { class: '1B', coins: 45 }
+            ];
+        const canUnlockAITech = user.coins >= 50 && !user.aiTechCompleted;
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-3xl font-bold mb-4">Hi, {user.kidName}!</h1>
+            <div className="text-center mb-6 flex items-center">
+              <div className="user-icon" dangerouslySetInnerHTML={{ __html: generateUserIcon(user.username, user.coins, user.lessonsCompleted, user.activitiesCompleted, user.showcased, user.node, user.iconAnimated, user.aiTechCompleted) }} />
+              <p>
+                Coins: {user.coins} ✨ | Progress: {user.progress}% | Tier: {user.tier.toUpperCase()} |{' '}
+                {user.isHomeschool ? `Node: ${user.node} | Ages: ${user.ageGroup}` : `Grade: ${user.grade} | Class: ${user.class}`}
+                {user.nodeRole ? ` | Role: ${user.nodeRole}` : ''}
+              </p>
+            </div>
+            <div className="progress-bar mb-4">
+              <div className="progress-fill" style={{ width: `${user.progress}%` }}></div>
+            </div>
+            <div className="leaderboard mb-4">
+              <h2 className="text-lg font-bold">{user.isHomeschool ? 'Node Leaderboard' : 'Class Leaderboard'}</h2>
+              {leaderboard.map((entry, index) => (
+                <p key={index}>{user.isHomeschool ? entry.node : entry.class}: {entry.coins} Team Coins</p>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowCustomize(true)}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Customize Icon
+            </button>
+            <button
+              onClick={() => setShowShowcase(true)}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Submit to Showcase
+            </button>
+            {canUnlockAITech && (
+              <button
+                onClick={() => setShowUnlock(true)}
+                className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+              >
+                Unlock AI Tech Level (2 Coins)
+              </button>
+            )}
+            {user.aiTechCompleted && (
+              <button
+                onClick={() => setPage('aiTech')}
+                className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+              >
+                AI Tech Level
+              </button>
+            )}
+            <button
+              onClick={() => window.location.href = 'payment.html'}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Upgrade Tier
+            </button>
+            {showCustomize && (
+              <div className="modal mt-4">
+                <h2 className="text-lg font-bold">Make Your Pilot Icon Yours!</h2>
+                <p className="mb-2">Want your icon to dance or stay still?</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      updateUser({ ...user, iconAnimated: true });
+                      setShowCustomize(false);
+                    }}
+                    className={`${themes[theme].button} text-white px-4 py-2 rounded`}
+                  >
+                    Dance (Animated)
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateUser({ ...user, iconAnimated: false });
+                      setShowCustomize(false);
+                    }}
+                    className={`${themes[theme].button} text-white px-4 py-2 rounded`}
+                  >
+                    Chill (Static)
+                  </button>
+                </div>
+              </div>
+            )}
+            {showShowcase && (
+              <div className="modal mt-4">
+                <h2 className="text-lg font-bold">Share Your Talent!</h2>
+                <p className="mb-2">Submit art, a story, or a song to your {user.isHomeschool ? user.node : `Grade ${user.grade}`} gallery!</p>
+                <input
+                  type="text"
+                  placeholder="Describe your creation (e.g., My AI plane)"
+                  className="border p-2 mb-2 w-full rounded"
+                  id="showcaseInput"
+                />
+                <label className="block mb-2">
+                  <input type="checkbox" id="publicShowcase" className="mr-2" />
+                  Allow public sharing (parent approval needed)
+                </label>
+                <button
+                  onClick={() => {
+                    const content = document.getElementById('showcaseInput').value;
+                    const isPublic = document.getElementById('publicShowcase').checked;
+                    if (content) {
+                      console.log(`Showcase submitted: ${content}, Public: ${isPublic}, User: ${user.username}`);
+                      updateUser({ ...user, showcased: true, progress: user.progress + 5 });
+                      setShowShowcase(false);
+                    }
+                  }}
+                  className={`${themes[theme].button} text-white px-4 py-2 rounded`}
+                >
+                  Submit (5% Progress)
+                </button>
+                <button
+                  onClick={() => setShowShowcase(false)}
+                  className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded`}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {showUnlock && (
+              <div className="modal mt-4">
+                <h2 className="text-lg font-bold">Unlock AI Tech Level!</h2>
+                <p className="mb-2">Star Pilot, spend 2 coins to build Zara’s AI Plane?</p>
+                <button
+                  onClick={() => {
+                    updateUser({ ...user, coins: user.coins - 2, aiTechCompleted: true });
+                    setShowUnlock(false);
+                    setPage('aiTech');
+                  }}
+                  className={`${themes[theme].button} text-white px-4 py-2 rounded`}
+                >
+                  Unlock (2 Coins)
+                </button>
+                <button
+                  onClick={() => setShowUnlock(false)}
+                  className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded`}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setPage('lifeSkills')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Pilot Life Skills
+            </button>
+            <button
+              onClick={() => setPage('spelling')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Spelling
+            </button>
+            <button
+              onClick={() => setPage('math')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Math
+            </button>
+            <button
+              onClick={() => setPage('chat')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              {user.isHomeschool ? `${user.node} Node` : `Grade ${user.grade} Network`}
+            </button>
+            <button
+              onClick={() => setPage('showcase')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              {user.isHomeschool ? `${user.node} Showcase` : `Grade ${user.grade} Showcase`}
+            </button>
+            <button
+              onClick={() => setPage('game')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Fractal Map
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'lifeSkills') {
+        const currentStory = stories[Math.floor(Math.random() * stories.length)];
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">Pilot Life Skills</h1>
+            <p className="mb-4">{currentStory.text}</p>
+            <p className="mb-2">Select items for the basket:</p>
+            {currentStory.basket.concat(['wrong']).map(item => (
+              <label key={item} className="block">
+                <input type="checkbox" name="basket" value={item} className="mr-2" />
+                {item}
+              </label>
+            ))}
+            <input
+              id="bonusAnswer"
+              type="text"
+              placeholder="How can you be kind?"
+              className="border p-2 mt-4 mb-4 w-64 rounded"
+            />
+            <button
+              onClick={checkLifeSkills}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Check & Chat
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'spelling') {
+        const currentWord = spellingWords[Math.floor(Math.random() * spellingWords.length)];
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">Spelling</h1>
+            <p className="mb-4">Spell: {currentWord.word}</p>
+            {currentWord.options.map(option => (
+              <label key={option} className="block">
+                <input type="radio" name="spelling" value={option} className="mr-2" />
+                {option}
+              </label>
+            ))}
+            <button
+              onClick={checkSpelling}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-4 rounded transition`}
+            >
+              Check & Chat
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'math') {
+        const currentQuestion = mathQuestions[Math.floor(Math.random() * mathQuestions.length)];
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">Math</h1>
+            <p className="mb-4">{currentQuestion.question}</p>
+            {currentQuestion.options.map(option => (
+              <label key={option} className="block">
+                <input type="radio" name="math" value={option} className="mr-2" />
+                {option}
+              </label>
+            ))}
+            <button
+              onClick={checkMath}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-4 rounded transition`}
+            >
+              Check & Chat
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'aiTech') {
+        const currentQuestion = aiTechQuestions[Math.floor(Math.random() * aiTechQuestions.length)];
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">Zara’s AI Workshop</h1>
+            <img src="assets/images/ai-plane.svg" alt="AI Plane" className="ai-plane mb-4" width="100" height="100" />
+            <p className="mb-4">{currentQuestion.question}</p>
+            {currentQuestion.options.map(option => (
+              <label key={option} className="block">
+                <input type="radio" name="aiTech" value={option} className="mr-2" />
+                {option}
+              </label>
+            ))}
+            <button
+              onClick={checkAITech}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-4 rounded transition`}
+            >
+              Check & Chat (5% Progress)
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'chat') {
+        const [chatMessages, setChatMessages] = useState([]);
+        const [chatInput, setChatInput] = useState('');
+        const [showRating, setShowRating] = useState(false);
+        const [lessonRating, setLessonRating] = useState(0);
+        const [chatPrompt, setChatPrompt] = useState(
+          user.aiTechCompleted ? `What’s your AI plane’s superpower?` :
+          user.isHomeschool ? `Plan a ${user.node} adventure!` : `Plan a Grade ${user.grade} balloon flight!`
+        );
+        const [showSafetyPromise, setShowSafetyPromise] = useState(!localStorage.getItem('safetyPromiseSeen'));
+
+        const sendChatMessage = () => {
+          if (chatInput.trim() === '' || (user.tier === 'free' && chatMessages.length >= 5)) {
+            if (user.tier === 'free' && chatMessages.length >= 5) {
+              alert('Free tier limited to 5 chats/day. Upgrade to Star Pilot!');
+            }
+            return;
+          }
+          const newMessage = { user: user.username, text: chatInput };
+          const updatedMessages = [...chatMessages, newMessage];
+          setChatMessages(updatedMessages);
+          setChatInput('');
+          setShowRating(true);
+
+          const isPositive = chatInput.toLowerCase().includes('kind') || chatInput.toLowerCase().includes('help');
+          const isHarmful = chatInput.toLowerCase().includes('hurt') || chatInput.toLowerCase().includes('bully');
+          if (isHarmful) {
+            console.log(`Teacher alert: ${user.username} posted "${chatInput}"`);
+            setChatMessages([...updatedMessages, {
+              user: 'Grok, Your Guide',
+              text: `I’ve told the ${user.isHomeschool ? 'node admin' : 'teacher'}, ${user.username}. Let’s plan a kind adventure! 😊`
+            }]);
+          } else if (isPositive) {
+            setChatMessages([...updatedMessages, {
+              user: 'Grok, Your Guide',
+              text: `Awesome pilot move, ${user.username}! 1 coin! 😊 Fly on!`
+            }]);
+            updateUser({ ...user, coins: user.coins + 1, progress: user.progress + 2 });
+          }
+        };
+
+        const submitRating = () => {
+          if (lessonRating > 0) {
+            console.log(`Lesson rating: ${lessonRating} stars from ${user.username}`);
+            updateUser({ ...user, coins: user.coins + 1 });
+            setShowRating(false);
+            setLessonRating(0);
+          }
+        };
+
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col`}>
+            <h1 className="text-2xl font-bold mb-4">{user.isHomeschool ? `${user.node} Star Pilot Node` : `Grade ${user.grade} Star Pilot Network`}</h1>
+            {showSafetyPromise && (
+              <div className="modal mb-4">
+                <h2 className="text-lg font-bold">Grok’s Safety Promise</h2>
+                <p>Your chats are safe with StarKid usernames. I flag harm to admins. Share freely!</p>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('safetyPromiseSeen', 'true');
+                    setShowSafetyPromise(false);
+                  }}
+                  className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded`}
+                >
+                  Got It!
+                </button>
+              </div>
+            )}
+            <p className="mb-4">{chatPrompt}</p>
+            <div className="flex-grow border border-gray-300 p-4 rounded mb-4 overflow-y-auto">
+              {chatMessages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`chat-bubble ${msg.user === 'Grok, Your Guide' ? 'grok-bubble' : 'user-bubble'}`}
+                  style={{ alignSelf: msg.user === 'Grok, Your Guide' ? 'flex-start' : 'flex-end' }}
+                >
+                  {msg.user !== 'Grok, Your Guide' && (
+                    <div
+                      className="user-icon"
+                      dangerouslySetInnerHTML={{ __html: generateUserIcon(msg.user, user.coins, user.lessonsCompleted, user.activitiesCompleted, user.showcased, user.node, user.iconAnimated, user.aiTechCompleted) }}
+                    />
+                  )}
+                  <strong>{msg.user}:</strong> {msg.text}
+                </div>
+              ))}
+            </div>
+            <div className="flex mb-4">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                className="border p-2 flex-grow rounded-l"
+                placeholder="Type your message..."
+              />
+              <button
+                onClick={sendChatMessage}
+                className={`${themes[theme].button} text-white px-4 py-2 rounded-r transition`}
+              >
+                Send
+              </button>
+            </div>
+            {showRating && (
+              <div className="modal">
+                <h2 className="text-lg font-bold">Rate This Lesson!</h2>
+                <div className="flex gap-2 mb-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setLessonRating(star)}
+                      className={`text-2xl ${lessonRating >= star ? 'text-yellow-400' : 'text-gray-400'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={submitRating}
+                  className={`${themes[theme].button} text-white px-4 py-2 rounded`}
+                >
+                  Submit (1 Coin)
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'showcase') {
+        const mockShowcase = [
+          { user: 'StarKid123', content: 'My AI plane has stars!', public: false },
+          { user: 'StarKid456', content: 'I drew a gold robot!', public: true }
+        ];
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">{user.isHomeschool ? `${user.node} Showcase Gallery` : `Grade ${user.grade} Showcase Gallery`}</h1>
+            <p className="mb-4">See what your {user.isHomeschool ? user.node : `Grade ${user.grade}`} pilots created!</p>
+            {mockShowcase.map((item, index) => (
+              <div key={index} className="border p-4 mb-2 rounded w-full">
+                <div
+                  className="user-icon inline-block"
+                  dangerouslySetInnerHTML={{ __html: generateUserIcon(item.user, user.coins, user.lessonsCompleted, user.activitiesCompleted, item.public, user.node, user.iconAnimated, user.aiTechCompleted) }}
+                />
+                <p><strong>{item.user}</strong>: {item.content} {item.public ? '(Public)' : ''}</p>
+              </div>
+            ))}
+            <button
+              onClick={() => setShowShowcase(true)}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition mb-2`}
+            >
+              Submit Your Creation
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      if (page === 'game') {
+        return (
+          <div className={`${themes[theme].bg} ${themes[theme].text} min-h-screen p-8 flex flex-col items-center`}>
+            <h1 className="text-2xl font-bold mb-4">Fractal Pilot Map</h1>
+            <p className="mb-4">Explore your {user.isHomeschool ? user.node : `Grade ${user.grade}`} pilot map!</p>
+            <button
+              onClick={() => window.location.href = 'game.html'}
+              className={`${themes[theme].button} text-white px-4 py-2 rounded transition`}
+            >
+              Launch Map
+            </button>
+            <button
+              onClick={() => setPage('home')}
+              className={`${themes[theme].button} text-white px-4 py-2 mt-2 rounded transition`}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      return null;
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
